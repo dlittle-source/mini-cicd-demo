@@ -1,0 +1,61 @@
+name: Mini CI/CD Demo
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Stage
+        run: echo "Build completed ✅"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Stage
+        run: |
+          if [ ! -f index.html ]; then
+            echo "index.html missing!"
+            exit 1
+          else
+            echo "Test passed ✅"
+          fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Security Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu
+            if [ -d mini-cicd-demo ]; then
+              cd mini-cicd-demo && git pull origin main
+            else
+              git clone https://github.com/dlittle-source/mini-cicd-demo.git
+            fi
+            sudo rsync -av --delete /home/ubuntu/mini-cicd-demo/ /var/www/html/
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
+            sudo systemctl reload nginx
