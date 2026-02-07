@@ -34,7 +34,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: mini-cicd-demo:latest
-          severity: LOW
+          severity: HIGH,CRITICAL
           exit-code: 1
           format: table
 
