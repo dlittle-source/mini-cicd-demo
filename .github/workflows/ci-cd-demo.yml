@@ -31,7 +31,7 @@ jobs:
         run: docker build -t mini-cicd-demo:latest .
 
       - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: mini-cicd-demo:latest
           severity: HIGH,CRITICAL
@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
