@@ -30,6 +30,9 @@ jobs:
       - name: Build image for scanning
         run: docker build -t mini-cicd-demo:latest .
 
+      - name: Download Trivy DB
+        run: trivy image --download-db-only
+
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@0.33.1
         with:
