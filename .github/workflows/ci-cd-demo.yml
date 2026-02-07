@@ -5,57 +5,66 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  docker-build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Stage
-        run: echo "Build completed ✅"
 
-  test:
-    runs-on: ubuntu-latest
-    needs: build
     steps:
-      - uses: actions/checkout@v4
-      - name: Test Stage
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
         run: |
-          if [ ! -f index.html ]; then
-            echo "index.html missing!"
-            exit 1
-          else
-            echo "Test passed ✅"
-          fi
+          docker build -t mini-cicd-demo:latest .
+          echo "Docker image built successfully ✅"
 
-  security-scan:
+  docker-security-scan:
+    name: Scan Docker Image
     runs-on: ubuntu-latest
-    needs: test
+    needs: docker-build
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Security Scan with Trivy
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build image for scanning
+        run: docker build -t mini-cicd-demo:latest .
+
+      - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: fs
+          image-ref: mini-cicd-demo:latest
           severity: HIGH,CRITICAL
           exit-code: 1
+          format: table
 
   deploy:
+    name: Deploy Docker App to EC2
     runs-on: ubuntu-latest
-    needs: security-scan
+    needs: docker-security-scan
+
     steps:
-      - name: Deploy to EC2
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu
-            if [ -d mini-cicd-demo ]; then
-              cd mini-cicd-demo && git pull origin main
-            else
-              git clone https://github.com/dlittle-source/mini-cicd-demo.git
-            fi
-            sudo rsync -av --delete /home/ubuntu/mini-cicd-demo/ /var/www/html/
-            sudo chown -R www-data:www-data /var/www/html
-            sudo chmod -R 755 /var/www/html
-            sudo systemctl reload nginx
+            echo "Starting deployment 🚀"
+
+            sudo docker stop mini-cicd-demo || true
+            sudo docker rm mini-cicd-demo || true
+
+            sudo docker pull mini-cicd-demo:latest || true
+
+            sudo docker build -t mini-cicd-demo:latest .
+
+            sudo docker run -d \
+              --name mini-cicd-demo \
+              -p 80:80 \
+              --restart unless-stopped \
+              mini-cicd-demo:latest
+
+            echo "Deployment completed ✅"
+
