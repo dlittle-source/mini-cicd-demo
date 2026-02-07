@@ -30,16 +30,12 @@ jobs:
       - name: Build image for scanning
         run: docker build -t mini-cicd-demo:latest .
 
-      - name: Download Trivy DB
-        run: trivy image --download-db-only
-
-      - name: Trivy Image Scan
+      - name: Scan Docker with Trivy
         uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: mini-cicd-demo:latest
           severity: HIGH,CRITICAL
           exit-code: 1
-          format: table
 
   deploy:
     name: Deploy Docker App to EC2
