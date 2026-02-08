@@ -1,21 +1,21 @@
-# Use Node.js LTS
 FROM node:20-alpine
 
 # Create app directory
 WORKDIR /usr/src/app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files FIRST
+COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install --production
 
-# Copy app source
+# Copy rest of app
 COPY . .
 
-# Expose port 80
+# Expose port
 EXPOSE 80
 
-# Start the app
+# Start app
 CMD ["npm", "start"]
+
 
