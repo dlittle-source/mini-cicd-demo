@@ -10,29 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, and push Docker image
-      env:
-        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Build, tag, and push Docker image
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   docker-security-scan:
     name: Scan ECR Image
@@ -40,22 +40,22 @@ jobs:
     needs: docker-build-push
 
     steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Scan image with Trivy
-      uses: aquasecurity/trivy-action@0.33.1
-      with:
-        image-ref: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest
-        severity: HIGH,CRITICAL
-        ignore-unfixed: true
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
 
   deploy:
     name: Deploy Docker App to EC2
@@ -63,62 +63,72 @@ jobs:
     needs: docker-security-scan
 
     steps:
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1
-      with:
-       host: ${{ secrets.EC2_HOST }}
-       username: ubuntu
-       key: ${{ secrets.EC2_SSH_KEY }}
-       script: |
-        echo "Starting deployment 🚀"
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG,AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY
+          script: |
+            echo "Starting deployment 🚀"
 
-        AWS_REGION=${{ secrets.AWS_REGION }}
-        ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
-        ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-        IMAGE_TAG=${GITHUB_SHA}
+            # Install AWS CLI if not installed
+            if ! command -v aws &> /dev/null; then
+              echo "AWS CLI not found. Installing..."
+              sudo apt update && sudo apt install -y awscli
+            fi
 
-        # Default to latest if CURRENT_IMAGE.txt doesn't exist
-        CURRENT_IMAGE_FILE="/home/ubuntu/CURRENT_IMAGE.txt"
-        if [ -f $CURRENT_IMAGE_FILE ]; then
-          PREV_IMAGE_TAG=$(cat $CURRENT_IMAGE_FILE)
-        else
-          PREV_IMAGE_TAG="latest"
-        fi
+            # Default previous image to 'latest' if not found
+            CURRENT_IMAGE_FILE="/home/ubuntu/CURRENT_IMAGE.txt"
+            if [ -f "$CURRENT_IMAGE_FILE" ]; then
+              PREV_IMAGE_TAG=$(cat "$CURRENT_IMAGE_FILE")
+            else
+              PREV_IMAGE_TAG="latest"
+            fi
 
-        echo "Logging into Amazon ECR"
-        aws ecr get-login-password --region $AWS_REGION \
-          | docker login --username AWS --password-stdin $ECR_REGISTRY
+            echo "Logging into Amazon ECR"
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-        echo "Pulling new image from ECR"
-        docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || { 
-          echo "Failed to pull new image. Aborting deployment."; exit 1; 
-        }
+            echo "Pulling new image from ECR: $IMAGE_TAG"
+            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" || {
+              echo "Failed to pull new image. Aborting deployment."; exit 1;
+            }
 
-        echo "Stopping old container"
-        docker stop mini-cicd-demo || true
-        docker rm mini-cicd-demo || true
+            echo "Stopping old container"
+            docker stop mini-cicd-demo || true
+            docker rm mini-cicd-demo || true
 
-        echo "Starting new container"
-        docker run -d \
-          --name mini-cicd-demo \
-          -p 80:80 \
-          --restart unless-stopped \
-          $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+            echo "Starting new container"
+            docker run -d \
+              --name mini-cicd-demo \
+              -p 80:80 \
+              --restart unless-stopped \
+              "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-        # Wait a few seconds and perform a basic health check
-        sleep 5
-        if ! curl -f http://localhost:80 >/dev/null 2>&1; then
-          echo "Deployment failed! Rolling back to previous image: $PREV_IMAGE_TAG"
-          docker stop mini-cicd-demo || true
-          docker rm mini-cicd-demo || true
-          docker run -d \
-            --name mini-cicd-demo \
-            -p 80:80 \
-            --restart unless-stopped \
-            $ECR_REGISTRY/$ECR_REPOSITORY:$PREV_IMAGE_TAG
-          exit 1
-        fi
+            # Simple health check
+            sleep 5
+            if ! curl -f http://localhost:80 >/dev/null 2>&1; then
+              echo "Deployment failed! Rolling back to previous image: $PREV_IMAGE_TAG"
+              docker stop mini-cicd-demo || true
+              docker rm mini-cicd-demo || true
+              docker run -d \
+                --name mini-cicd-demo \
+                -p 80:80 \
+                --restart unless-stopped \
+                "$ECR_REGISTRY/$ECR_REPOSITORY:$PREV_IMAGE_TAG"
+              exit 1
+            fi
 
-        echo $IMAGE_TAG > $CURRENT_IMAGE_FILE
-        echo "Deployment completed ✅"
+            # Save current image tag for next rollback
+            echo "$IMAGE_TAG" > "$CURRENT_IMAGE_FILE"
+
+            echo "Deployment completed ✅"
+
 
