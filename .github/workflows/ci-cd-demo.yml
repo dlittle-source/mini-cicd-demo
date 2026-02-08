@@ -58,41 +58,67 @@ jobs:
         ignore-unfixed: true
 
   deploy:
-     name: Deploy Docker App to EC2
-     runs-on: ubuntu-latest
-     needs: docker-security-scan
+    name: Deploy Docker App to EC2
+    runs-on: ubuntu-latest
+    needs: docker-security-scan
 
-     steps:
-     - name: Deploy via SSH
-       uses: appleboy/ssh-action@v1
-       with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          echo "Starting deployment 🚀"
+    steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1
+      with:
+       host: ${{ secrets.EC2_HOST }}
+       username: ubuntu
+       key: ${{ secrets.EC2_SSH_KEY }}
+       script: |
+        echo "Starting deployment 🚀"
 
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+        AWS_REGION=${{ secrets.AWS_REGION }}
+        ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+        ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+        IMAGE_TAG=${GITHUB_SHA}
 
-          echo "Logging into Amazon ECR"
-          aws ecr get-login-password --region $AWS_REGION \
-            | docker login --username AWS --password-stdin $ECR_REGISTRY
+        # Default to latest if CURRENT_IMAGE.txt doesn't exist
+        CURRENT_IMAGE_FILE="/home/ubuntu/CURRENT_IMAGE.txt"
+        if [ -f $CURRENT_IMAGE_FILE ]; then
+          PREV_IMAGE_TAG=$(cat $CURRENT_IMAGE_FILE)
+        else
+          PREV_IMAGE_TAG="latest"
+        fi
 
-          echo "Pulling latest image from ECR"
-          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "Logging into Amazon ECR"
+        aws ecr get-login-password --region $AWS_REGION \
+          | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-          echo "Stopping old container"
+        echo "Pulling new image from ECR"
+        docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || { 
+          echo "Failed to pull new image. Aborting deployment."; exit 1; 
+        }
+
+        echo "Stopping old container"
+        docker stop mini-cicd-demo || true
+        docker rm mini-cicd-demo || true
+
+        echo "Starting new container"
+        docker run -d \
+          --name mini-cicd-demo \
+          -p 80:80 \
+          --restart unless-stopped \
+          $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+        # Wait a few seconds and perform a basic health check
+        sleep 5
+        if ! curl -f http://localhost:80 >/dev/null 2>&1; then
+          echo "Deployment failed! Rolling back to previous image: $PREV_IMAGE_TAG"
           docker stop mini-cicd-demo || true
           docker rm mini-cicd-demo || true
-
-          echo "Starting new container"
           docker run -d \
             --name mini-cicd-demo \
             -p 80:80 \
             --restart unless-stopped \
-            $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            $ECR_REGISTRY/$ECR_REPOSITORY:$PREV_IMAGE_TAG
+          exit 1
+        fi
 
-          echo "Deployment completed ✅"
+        echo $IMAGE_TAG > $CURRENT_IMAGE_FILE
+        echo "Deployment completed ✅"
 
