@@ -1,28 +1,21 @@
-# ---- Build Stage ----
-FROM node:20-alpine AS build
-
-WORKDIR /app
-
-COPY app/package*.json ./
-RUN npm ci --only=production
-
-COPY app/ .
-
-# ---- Runtime Stage ----
+# Use Node.js LTS
 FROM node:20-alpine
 
-WORKDIR /app
+# Create app directory
+WORKDIR /usr/src/app
 
-# Create non-root user (security best practice)
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Copy package files
+COPY package*.json ./
 
-COPY --from=build /app .
+# Install dependencies
+RUN npm install
 
-USER appuser
+# Copy app source
+COPY . .
 
-EXPOSE 3000
+# Expose port 80
+EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget -qO- http://localhost:3000/health || exit 1
-
+# Start the app
 CMD ["npm", "start"]
+
