@@ -90,71 +90,72 @@ jobs:
 # 3️⃣ Deploy to EC2 with Rollback
 # ---------------------------------------------------
   deploy:
-    name: Deploy Docker App to EC2 (With Rollback)
+    name: Deploy Docker App to EC2
     runs-on: ubuntu-latest
     needs: docker-security-scan
 
     steps:
     - name: Deploy via SSH
       uses: appleboy/ssh-action@v1
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        CONTAINER_NAME: mini-cicd-demo
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
-        envs: |
-          |
-          IMAGE_TAG: ${{ github.sha }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        envs: AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY,CONTAINER_NAME
         script: |
+          set -e  # exit immediately if any command fails
+
           echo "🚀 Starting deployment"
 
-          # Ensure AWS CLI exists
-          if ! command -v aws &> /dev/null; then
-            echo "Installing AWS CLI..."
-            sudo apt update && sudo apt install -y awscli
-          fi
-
-          CURRENT_IMAGE_FILE="/home/ubuntu/CURRENT_IMAGE.txt"
-
-          if [ -f "$CURRENT_IMAGE_FILE" ]; then
-            PREV_IMAGE_TAG=$(cat $CURRENT_IMAGE_FILE)
-          else
-            PREV_IMAGE_TAG="latest"
-          fi
-
+          # Log into Amazon ECR
           echo "🔐 Logging into Amazon ECR"
-          aws ecr get-login-password --region "$AWS_REGION" \
-            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-          echo "📦 Pulling new image"
-          docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" || exit 1
+          # Pull the latest image
+          echo "📦 Pulling latest image from ECR"
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-          echo "🛑 Stopping old container"
-          docker stop mini-cicd-demo || true
-          docker rm mini-cicd-demo || true
+          # Save current container image digest for rollback
+          if docker ps -a --format '{{.Names}}' | grep -Eq "^$CONTAINER_NAME\$"; then
+            CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' $CONTAINER_NAME)
+            echo "💾 Current image digest for rollback: $CURRENT_IMAGE"
+          fi
 
+          # Stop and remove old container
+          echo "🛑 Stopping old container (if exists)"
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+
+          # Run the new container
           echo "▶️ Starting new container"
           docker run -d \
-            --name mini-cicd-demo \
+            --name $CONTAINER_NAME \
             -p 80:80 \
             --restart unless-stopped \
-            "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+            $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-          sleep 5
+          # Verify container is running
+          NEW_CONTAINER=$(docker ps --filter "name=$CONTAINER_NAME" --format '{{.ID}}')
+          if [ -z "$NEW_CONTAINER" ]; then
+            echo "❌ Deployment failed, rolling back..."
 
-          if ! curl -f http://localhost >/dev/null 2>&1; then
-            echo "❌ Health check failed — rolling back"
-            docker stop mini-cicd-demo || true
-            docker rm mini-cicd-demo || true
-            docker run -d \
-              --name mini-cicd-demo \
-              -p 80:80 \
-              --restart unless-stopped \
-              "$ECR_REGISTRY/$ECR_REPOSITORY:$PREV_IMAGE_TAG"
+            if [ -n "$CURRENT_IMAGE" ]; then
+              docker run -d \
+                --name $CONTAINER_NAME \
+                -p 80:80 \
+                --restart unless-stopped \
+                $CURRENT_IMAGE
+              echo "✅ Rollback successful"
+            else
+              echo "⚠ No previous container found to rollback"
+            fi
             exit 1
           fi
 
-          echo "$IMAGE_TAG" > "$CURRENT_IMAGE_FILE"
-          echo "✅ Deployment successful"
+          echo "✅ Deployment completed successfully"
