@@ -2,11 +2,11 @@
 > ℹ️ **Note:** The CI/CD badge may show as failing when the EC2 instance is intentionally powered off to avoid cloud costs. The pipeline has been fully validated with successful deployments.
 
 
-# Mini CI/CD Demo – Docker, ECR, Trivy, EC2
+# Mini CI/CD Demo – Secure Docker Deployment on AWS
 
-## 📌 Project Overview
+## 📌 Project Summary
 
-This project demonstrates a **production-style CI/CD pipeline** for a containerized Node.js application using **GitHub Actions**, **Docker**, **Amazon ECR**, **EC2**, and **Trivy security scanning**.
+This project demonstrates a **real-world, production-style CI/CD pipeline** for deploying a containerized Node.js application on AWS.
 
 The pipeline automatically:
 - Builds a Docker image
@@ -15,7 +15,7 @@ The pipeline automatically:
 - Deploys the container to an EC2 instance
 - Supports rollback on deployment failure
 
-This project was built to showcase **real-world DevOps practices** suitable for freelance work and production environments.
+This repository is designed as a **portfolio-grade DevOps demo,** suitable for freelance work, client projects, and technical interviews.
 
 ---
 
@@ -47,7 +47,7 @@ This project was built to showcase **real-world DevOps practices** suitable for 
 
 ---
 
-## 🔁 CI/CD Pipeline Stages
+## 🔁 CI/CD Pipeline Breakdown
 
 ### 1️⃣ Build & Push
 - Builds Docker image
