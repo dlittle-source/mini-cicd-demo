@@ -1,3 +1,5 @@
+![CI/CD](https://github.com/dlittle-source/mini-cicd-demo/actions/workflows/ci-cd.yml/badge.svg)
+
 # Mini CI/CD Demo – Docker, ECR, Trivy, EC2
 
 ## 📌 Project Overview
