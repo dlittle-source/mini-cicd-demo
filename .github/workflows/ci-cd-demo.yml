@@ -2,7 +2,13 @@ name: Mini CI/CD Demo
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
 
 jobs:
 # ---------------------------------------------------
