@@ -67,18 +67,15 @@ This repository is designed as a **portfolio-grade DevOps demo,** suitable for f
 - Automatically rolls back if deployment fails
 
 ---
+🔐 Security Strategy
+This project uses a balanced security approach commonly used in production
 
-## 🔐 Security Scanning Strategy
+| Severity | Action                |
+| -------- | --------------------- |
+| HIGH     | Logged for visibility |
+| CRITICAL | Blocks deployment     |
 
-This pipeline follows a **balanced security approach**:
-
-| Severity | Behavior |
-|--------|----------|
-| HIGH | Logged (non-blocking) |
-| CRITICAL | Blocks deployment |
-
-This ensures security visibility **without slowing development**.
-
+This ensures strong security without slowing delivery.
 ---
 
 ## 🚀 Deployment & Rollback Logic
