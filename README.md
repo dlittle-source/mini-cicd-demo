@@ -37,6 +37,17 @@ back to the previously known-good image to prevent downtime.
 
 ---
 
+## Why This Project Matters
+
+This project reflects real-world DevOps practices, including:
+- Secure container delivery
+- Automated vulnerability scanning
+- Controlled deployments
+- Rollback and failure recovery
+- Production-minded CI/CD design
+
+---
+
 ## 🔐 Security Scanning Strategy
 
 The pipeline includes **two Trivy scans**:
