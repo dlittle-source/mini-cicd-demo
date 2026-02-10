@@ -1,47 +1,39 @@
-# Mini CI/CD Demo – Docker + AWS + GitHub Actions
+# Mini CI/CD Pipeline with Docker, Trivy, Amazon ECR, and EC2
 
-A production-style **CI/CD pipeline demo** that builds, scans, pushes, and deploys a Dockerized Node.js application to an Amazon EC2 instance using Amazon ECR as the container registry.
-
-This project is designed to demonstrate **real-world DevOps practices**, including security scanning, rollback mechanisms, concurrency control, and automated deployments.
+This project demonstrates a production-style CI/CD pipeline that builds, scans, and deploys a Dockerized Node.js application to an EC2 instance using GitHub Actions and Amazon ECR, with security scanning and rollback support.
 
 ---
 
-## 🚀 Project Overview
+## Tech Stack
 
-This pipeline automates the following workflow:
-
-1. **Build** a Docker image for a Node.js demo application
-2. **Push** the image to **Amazon ECR**
-3. **Scan** the image using **Trivy** (informational + gated security scans)
-4. **Deploy** the image to an **EC2 instance** via SSH
-5. **Rollback** automatically if deployment fails
-
----
-
-## 🧱 Architecture
-
-**High-level flow:**
-
-Developer → GitHub → GitHub Actions → Amazon ECR → EC2 Instance → Docker Container
-
-* GitHub Actions handles CI/CD
-* Amazon ECR stores versioned Docker images
-* EC2 runs the containerized application
-* Trivy ensures container security
-
-(Diagram included separately)
+- Node.js (demo application)
+- Docker
+- GitHub Actions
+- Amazon ECR
+- Amazon EC2
+- Trivy (container security scanning)
+- Nginx (host-level web server)
 
 ---
 
-## 🛠️ Tech Stack
+## CI/CD Pipeline Overview
 
-* **Application**: Node.js (Express)
-* **Containerization**: Docker
-* **CI/CD**: GitHub Actions
-* **Container Registry**: Amazon ECR
-* **Compute**: Amazon EC2 (Ubuntu)
-* **Security Scanning**: Trivy
-* **Deployment**: SSH-based Docker deployment
+1. Code is pushed to the `main` branch
+2. GitHub Actions builds a Docker image
+3. Image is pushed to Amazon ECR
+4. Trivy scans the image for vulnerabilities
+5. CRITICAL vulnerabilities block deployment
+6. Image is deployed to EC2 via SSH
+7. Rollback is triggered automatically on failure
+
+---
+
+## Rollback Strategy
+
+Before deploying a new container, the pipeline records the currently running
+image digest. If the new deployment fails, the pipeline automatically rolls
+back to the previously known-good image to prevent downtime.
+
 
 ---
 
