@@ -1,4 +1,7 @@
 ![CI/CD](https://github.com/dlittle-source/mini-cicd-demo/actions/workflows/ci-cd-demo.yml/badge.svg)
+> ℹ️ **Note:** The CI/CD badge may show as failing when the EC2 instance is intentionally powered off to avoid cloud costs.  
+> The pipeline has been fully validated with successful deployments.
+
 
 # Mini CI/CD Demo – Docker, ECR, Trivy, EC2
 
