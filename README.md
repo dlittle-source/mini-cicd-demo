@@ -66,6 +66,10 @@ This repository is designed as a **portfolio-grade DevOps demo,** suitable for f
 - Starts new container
 - Automatically rolls back if deployment fails
 
+### 4️⃣ Concurrency Control
+- Prevents overlapping deployments
+- Cancels in-progress deploys if a new push occurs
+
 ---
 🔐 Security Strategy
 This project uses a balanced security approach commonly used in production
