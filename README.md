@@ -32,7 +32,7 @@ This project was built to showcase **real-world DevOps practices** suitable for 
 
 ## 🏗 Architecture Overview
 
-![Architecture Diagram](diagrams/architecture.png)
+![Architecture Diagram](architecture.png)
 
 ### Flow:
 1. Developer pushes code to GitHub
