@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
 # ---------------------------------------------------
-# 1️⃣ Build & Push Docker Image to ECR
+# 1️⃣ Build & Push Docker Image to AWS ECR
 # ---------------------------------------------------
   docker-build-push:
     name: Build & Push Docker Image to ECR
