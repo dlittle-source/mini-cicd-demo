@@ -1,6 +1,6 @@
 name: Mini CI/CD Demo
 
-on:
+# on:
   push:
     branches:
       - main
