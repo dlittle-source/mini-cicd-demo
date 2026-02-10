@@ -94,3 +94,7 @@ This simulates **real production rollback behavior**.
 ```bash
 docker build -t mini-cicd-demo .
 docker run -p 3000:3000 mini-cicd-demo
+
+Visit
+http://localhost:3000
+
