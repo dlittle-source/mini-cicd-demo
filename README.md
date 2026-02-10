@@ -1,177 +1,96 @@
-# Mini CI/CD Pipeline with Docker, Trivy, Amazon ECR, and EC2
+# Mini CI/CD Demo – Docker, ECR, Trivy, EC2
 
-This project demonstrates a production-style CI/CD pipeline that builds, scans, and deploys a Dockerized Node.js application to an EC2 instance using GitHub Actions and Amazon ECR, with security scanning and rollback support.
+## 📌 Project Overview
 
----
+This project demonstrates a **production-style CI/CD pipeline** for a containerized Node.js application using **GitHub Actions**, **Docker**, **Amazon ECR**, **EC2**, and **Trivy security scanning**.
 
-## Tech Stack
+The pipeline automatically:
+- Builds a Docker image
+- Scans the image for vulnerabilities
+- Pushes the image to Amazon ECR
+- Deploys the container to an EC2 instance
+- Supports rollback on deployment failure
 
-- Node.js (demo application)
-- Docker
-- GitHub Actions
-- Amazon ECR
-- Amazon EC2
-- Trivy (container security scanning)
-- Nginx (host-level web server)
-
----
-
-## CI/CD Pipeline Overview
-
-1. Code is pushed to the `main` branch
-2. GitHub Actions builds a Docker image
-3. Image is pushed to Amazon ECR
-4. Trivy scans the image for vulnerabilities
-5. CRITICAL vulnerabilities block deployment
-6. Image is deployed to EC2 via SSH
-7. Rollback is triggered automatically on failure
+This project was built to showcase **real-world DevOps practices** suitable for freelance work and production environments.
 
 ---
 
-## Rollback Strategy
+## 🛠 Tech Stack
 
-Before deploying a new container, the pipeline records the currently running
-image digest. If the new deployment fails, the pipeline automatically rolls
-back to the previously known-good image to prevent downtime.
-
+- **Application**: Node.js (Express)
+- **CI/CD**: GitHub Actions
+- **Containerization**: Docker
+- **Container Registry**: Amazon ECR
+- **Deployment Target**: Amazon EC2
+- **Security Scanning**: Trivy
+- **Web Server**: Dockerized Node.js app
+- **Cloud Provider**: AWS
 
 ---
 
-## Why This Project Matters
+## 🏗 Architecture Overview
 
-This project reflects real-world DevOps practices, including:
-- Secure container delivery
-- Automated vulnerability scanning
-- Controlled deployments
-- Rollback and failure recovery
-- Production-minded CI/CD design
+![Architecture Diagram](diagrams/architecture.png)
+
+### Flow:
+1. Developer pushes code to GitHub
+2. GitHub Actions triggers the CI/CD pipeline
+3. Docker image is built
+4. Image is scanned with Trivy
+5. Image is pushed to Amazon ECR
+6. EC2 pulls the latest image and runs the container
+7. Application is accessible via browser
+
+---
+
+## 🔁 CI/CD Pipeline Stages
+
+### 1️⃣ Build & Push
+- Builds Docker image
+- Tags image with `latest` and commit SHA
+- Pushes image to Amazon ECR
+
+### 2️⃣ Security Scan
+- Trivy scans Docker image
+- Informational scan for HIGH & CRITICAL
+- Gate scan blocks only CRITICAL vulnerabilities
+- Scan reports exported as GitHub artifacts
+
+### 3️⃣ Deploy & Rollback
+- Pulls latest image from ECR
+- Stops existing container safely
+- Starts new container
+- Automatically rolls back if deployment fails
 
 ---
 
 ## 🔐 Security Scanning Strategy
 
-The pipeline includes **two Trivy scans**:
+This pipeline follows a **balanced security approach**:
 
-### 1️⃣ Informational Scan (Non-blocking)
+| Severity | Behavior |
+|--------|----------|
+| HIGH | Logged (non-blocking) |
+| CRITICAL | Blocks deployment |
 
-* Severity: `HIGH, CRITICAL`
-* Purpose: Visibility and reporting
-* Pipeline impact: **Never fails**
-
-### 2️⃣ Gate Scan (Blocking)
-
-* Severity: `CRITICAL`
-* Purpose: Prevent high-risk deployments
-* Pipeline impact: **Fails build if critical issues are found**
-
-Scan reports are exported as **GitHub Actions artifacts**.
+This ensures security visibility **without slowing development**.
 
 ---
 
-## 🔁 Rollback Mechanism
+## 🚀 Deployment & Rollback Logic
 
-Before deploying a new image, the pipeline:
+- Deployment occurs over SSH to EC2
+- Existing container image digest is saved
+- If the new container fails:
+- Previous image is restored automatically
+- Service downtime is minimized
 
-1. Captures the **currently running image digest**
-2. Attempts to deploy the new image
-3. If deployment fails:
-
-   * Stops the failed container
-   * Restarts the previous known-good image
-
-This ensures **zero-downtime recovery** during failed releases.
+This simulates **real production rollback behavior**.
 
 ---
 
-## ⚙️ CI/CD Workflow Stages
+## ▶️ Run Locally
 
-1. **Build & Push**
-
-   * Build Docker image
-   * Tag with `latest` and commit SHA
-   * Push to Amazon ECR
-
-2. **Security Scan**
-
-   * Trivy image scan
-   * Artifact export
-
-3. **Deploy**
-
-   * SSH into EC2
-   * Login to ECR
-   * Pull latest image
-   * Stop existing container
-   * Start new container
-   * Rollback on failure
-
-4. **Concurrency Control**
-
-   * Ensures only one deployment runs at a time
-   * Automatically cancels in-progress deployments
-
----
-
-## 📦 Demo Application
-
-The deployed application is a simple Node.js frontend demo that confirms:
-
-* Docker build success
-* ECR image pull
-* EC2 container deployment
-
-Accessed via:
-
-```
-http://<EC2_PUBLIC_IP>
-```
-
----
-
-## 🧪 Prerequisites
-
-* AWS Account
-* EC2 Instance (Docker installed)
-* Amazon ECR Repository
-* GitHub Repository
-* GitHub Secrets configured:
-
-  * `AWS_ACCESS_KEY_ID`
-  * `AWS_SECRET_ACCESS_KEY`
-  * `AWS_REGION`
-  * `ECR_REGISTRY`
-  * `ECR_REPOSITORY`
-  * `EC2_HOST`
-  * `EC2_SSH_KEY`
-
----
-
-## 📈 What This Project Demonstrates
-
-✔ Real-world CI/CD pipeline design
-✔ Secure container workflows
-✔ AWS ECR integration
-✔ Rollback-safe deployments
-✔ Production-minded DevOps practices
-
----
-
-## 🔮 Future Improvements
-
-* Blue/Green deployments
-* ECS or EKS migration (separate project)
-* Slack / email notifications
-* Terraform infrastructure provisioning
-
----
-
-## 👤 Author
-
-**Demarko Little**
-Cloud & DevOps Engineer
-
----
-
-## 📄 License
-
-MIT License
+```bash
+docker build -t mini-cicd-demo .
+docker run -p 3000:3000 mini-cicd-demo
