@@ -34,7 +34,7 @@ This repository is designed as a **portfolio-grade DevOps demo,** suitable for f
 
 ## 🏗 Architecture Overview
 
-![Architecture Diagram](architecture.png)
+![Architecture Diagram](secure-cicd-architecture.png)
 
 ### Flow:
 1. Developer pushes code to GitHub
